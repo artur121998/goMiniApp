@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Поиск компаний</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    margin: 0; padding: 20px;
+    background: #f5f6f8;
+  }
+  h1 {
+    text-align: center;
+    color: #2a2a2a;
+  }
+  .filter {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 20px;
+    justify-content: center;
+  }
+  .filter select, .filter input {
+    padding: 8px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+  }
+  button {
+    background: #0088cc;
+    color: #fff;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  button:hover { background: #0077b3; }
+  .events { display: flex; flex-direction: column; gap: 15px; }
+  .event-card {
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    padding: 15px;
+    transition: transform 0.2s;
+  }
+  .event-card:hover { transform: translateY(-2px); }
+  .event-header { font-weight: bold; font-size: 1.2em; margin-bottom: 8px; }
+  .event-info { font-size: 0.95em; margin-bottom: 8px; }
+  .join-btn { background: #2da44e; width: 100%; }
+  .join-btn:hover { background: #238636; }
+</style>
+</head>
+<body>
+
+<h1>Поиск компаний</h1>
+
+<div class="filter">
+  <input type="text" id="place" placeholder="Город или место">
+  <input type="number" id="minSeats" min="1" value="1" placeholder="Мин. мест">
+  <select id="gender">
+    <option value="any">Любой пол</option>
+    <option value="м">Мужчины</option>
+    <option value="ж">Женщины</option>
+    <option value="м/ж">М/Ж</option>
+  </select>
+  <input type="text" id="age" placeholder="Возраст (например 20-30)">
+  <button id="searchBtn">Искать</button>
+</div>
+
+<div class="events" id="results"></div>
+
+<script>
+  const tg = window.Telegram?.WebApp || {
+    initDataUnsafe: { user: { first_name: "Тест", id: 123 } },
+    sendData: (data) => console.log("Данные отправлены боту:", data),
+    close: () => alert("Web App закрыт")
+  };
+
+  const events = [
+    { name: "Бар 'Огонек'", place: "Оренбург", seats: 5, time: "20:00", company: "м/ж 25-35" },
+    { name: "Театр 'Лира'", place: "Москва", seats: 2, time: "18:00", company: "ж 20-30" },
+    { name: "Кафе 'Вдохновение'", place: "Оренбург", seats: 4, time: "19:00", company: "м 25-40" },
+    { name: "Парк 'Сказка'", place: "Санкт-Петербург", seats: 3, time: "17:00", company: "м/ж 18-28" },
+    { name: "Клуб 'Вечер'", place: "Оренбург", seats: 6, time: "22:00", company: "м/ж 25-35" }
+  ];
+
+  const resultsDiv = document.getElementById("results");
+
+  function renderEvents(list) {
+    resultsDiv.innerHTML = "";
+    if (list.length === 0) {
+      resultsDiv.innerHTML = "<p>Мероприятия не найдены.</p>";
+      return;
+    }
+    list.forEach(event => {
+      const div = document.createElement("div");
+      div.className = "event-card";
+      div.innerHTML = `
+        <div class="event-header">${event.name}</div>
+        <div class="event-info">Место: ${event.place}</div>
+        <div class="event-info">Время: ${event.time}</div>
+        <div class="event-info">Компания: ${event.company}</div>
+        <div class="event-info">Свободные места: ${event.seats}</div>
+        <button class="join-btn">Присоединиться</button>
+      `;
+      div.querySelector(".join-btn").onclick = () => {
+        tg.sendData(JSON.stringify({ event: event.name, user: tg.initDataUnsafe.user }));
+        tg.close();
+      };
+      resultsDiv.appendChild(div);
+    });
+  }
+
+  function filterEvents() {
+    const place = document.getElementById("place").value.toLowerCase();
+    const minSeats = parseInt(document.getElementById("minSeats").value, 10);
+    const gender = document.getElementById("gender").value;
+    const ageRange = document.getElementById("age").value;
+
+    const filtered = events.filter(e => {
+      let pass = true;
+
+      // фильтр по месту
+      if (place && !e.place.toLowerCase().includes(place)) pass = false;
+
+      // фильтр по местам
+      if (e.seats < minSeats) pass = false;
+
+      // фильтр по полу
+      if (gender !== "any" && !e.company.includes(gender)) pass = false;
+
+      // фильтр по возрасту
+      if (ageRange) {
+        const [minAge, maxAge] = ageRange.split("-").map(n => parseInt(n.trim(), 10));
+        const [eventMin, eventMax] = e.company.match(/\d+/g).map(Number);
+        if (minAge && maxAge && (eventMax < minAge || eventMin > maxAge)) pass = false;
+      }
+
+      return pass;
+    });
+
+    renderEvents(filtered);
+  }
+
+  document.getElementById("searchBtn").onclick = filterEvents;
+
+  // Показываем все события по умолчанию
+  renderEvents(events);
+</script>
+
+</body>
+</html>
